@@ -1,8 +1,5 @@
-import Distribution.Simple.InstallDirs (InstallDirs(InstallDirs))
-
 data Direction
   = Forward
-  | Backward
   | Up
   | Down
   | Unknown
@@ -16,26 +13,23 @@ handle :: String -> String
 handle = show . solve . lines
 
 solve :: [String] -> Int
-solve rawInstructions = depth * position
+solve rawInstructions = formatOutput location
   where directions = map (parseInstructionDirection . head) rawInstructions
         magnitudes = map parseInstructionMagnitude rawInstructions
         instructions = zip directions magnitudes
-        depth = foldl applyDepth 0 instructions
-        position = foldl applyPosition 0 instructions
+        location = foldl applyInstruction (0, 0, 0) instructions
 
-applyDepth :: Int -> Instruction -> Int
-applyDepth depth (Up, magnitude) = depth - magnitude
-applyDepth depth (Down, magnitude) = depth + magnitude
-applyDepth depth (_, magnitude) = depth
+formatOutput :: (Int, Int, Int) -> Int
+formatOutput (_, depth, position) = depth * position
 
-applyPosition :: Int -> Instruction -> Int
-applyPosition position (Forward, magnitude) = position + magnitude
-applyPosition position (Backward, magnitude) = position - magnitude
-applyPosition position (_, magnitude) = position
+applyInstruction :: (Int, Int, Int) -> Instruction -> (Int, Int, Int)
+applyInstruction (aim, depth, position) (Up, magnitude) = (aim - magnitude, depth, position)
+applyInstruction (aim, depth, position) (Down, magnitude) = (aim + magnitude, depth, position)
+applyInstruction (aim, depth, position) (Forward, magnitude) = (aim, depth + (aim * magnitude), position + magnitude)
+applyInstruction instruction _ = instruction
 
 parseInstructionDirection :: Char -> Direction
 parseInstructionDirection 'f' = Forward
-parseInstructionDirection 'b' = Backward
 parseInstructionDirection 'u' = Up
 parseInstructionDirection 'd' = Down
 parseInstructionDirection _ = Unknown
