@@ -1,5 +1,4 @@
 import Data.List
-import Debug.Trace
 import Data.Char
 
 type DiagnosticReport = [Int]
@@ -10,46 +9,52 @@ main = interact handle
 handle :: String -> String
 handle = show . solve . lines
 
-solve :: [String] -> String
-solve bits = show $ gamma * epsilon
+solve :: [String] -> Int
+solve bits = oxygenRating * co2Rating 
   where reports = map parseDiagnosticReport bits
-        gamma = calcGamma reports
-        epsilon = calcEpsilon reports
+        oxygenRating = decimal $ head $ calcOxygenRating reports 0
+        co2Rating = decimal $ head $ calcCO2Rating reports 0
 
 parseDiagnosticReport :: String -> DiagnosticReport
 parseDiagnosticReport = map (read . (:""))
 
-calcGamma :: [DiagnosticReport] -> Int
-calcGamma reports = decimal $ map mostCommon zipped
+calcOxygenRating :: [DiagnosticReport] -> Int -> [DiagnosticReport]
+calcOxygenRating [report] consideredPosition = [report]
+calcOxygenRating reports consideredPosition = calcOxygenRating remainingReports (consideredPosition + 1)
   where
-    transposedReports = trace (show reports) $ transpose reports
-    oneFrequencies = map countOnes transposedReports
-    zeroFrequencies = map countZeroes transposedReports
-    zipped = zip zeroFrequencies oneFrequencies
+    (zerosCount, onesCount) = binaryFrequencies reports !! consideredPosition
+    mostCommon = mostCommonAtPosition reports consideredPosition
+    remainingReports = filter (\report -> report !! consideredPosition == mostCommon) reports
 
-calcEpsilon :: [DiagnosticReport] -> Int
-calcEpsilon reports = decimal $ map leastCommon zipped
+calcCO2Rating :: [DiagnosticReport] -> Int -> [DiagnosticReport]
+calcCO2Rating [report] consideredPosition = [report]
+calcCO2Rating reports consideredPosition = calcCO2Rating remainingReports (consideredPosition + 1)
   where
-    transposedReports = trace (show reports) $ transpose reports
-    oneFrequencies = map countOnes transposedReports
-    zeroFrequencies = map countZeroes transposedReports
-    zipped = zip zeroFrequencies oneFrequencies
+    (zerosCount, onesCount) = binaryFrequencies reports !! consideredPosition
+    leastCommon = leastCommonAtPosition reports consideredPosition
+    remainingReports = filter (\report -> report !! consideredPosition == leastCommon) reports
 
-mostCommon :: (Int, Int) -> Int
-mostCommon (a, b)
-  | a > b = 0
+mostCommonAtPosition :: [DiagnosticReport] -> Int -> Int
+mostCommonAtPosition reports consideredPosition
+  | zerosCount > onesCount = 0
+  | onesCount > zerosCount = 1
   | otherwise = 1
+  where
+    (zerosCount, onesCount) = binaryFrequencies reports !! consideredPosition
 
-leastCommon :: (Int, Int) -> Int
-leastCommon (a, b)
-  | a < b = 0
-  | otherwise = 1
+leastCommonAtPosition :: [DiagnosticReport] -> Int -> Int
+leastCommonAtPosition reports consideredPosition
+  | zerosCount < onesCount = 0
+  | onesCount < zerosCount = 1
+  | otherwise = 0
+  where
+    (zerosCount, onesCount) = binaryFrequencies reports !! consideredPosition
 
-countOnes :: [Int] -> Int
-countOnes = length . filter (== 1)
-
-countZeroes :: [Int] -> Int
-countZeroes = length . filter (== 0)
+binaryFrequencies :: [DiagnosticReport] -> [(Int, Int)]
+binaryFrequencies reports = zip zerosCount onesCount
+  where transposedReports = transpose reports
+        zerosCount = map (length . filter (== 0)) transposedReports
+        onesCount = map (length . filter (== 1)) transposedReports
 
 decimal :: [Int] -> Int
 decimal bits = foldl' (\acc x -> acc * 2 + digitToInt x) 0 bitString
