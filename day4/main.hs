@@ -9,12 +9,13 @@ handle :: String -> String
 handle = show . solve . lines
 
 solve :: [String] -> String
-solve rawLines = show $ calcOutput winningBoard draws drawCount
+solve rawLines = show $ calcOutput worstBoard draws drawCount
   where
     cleanedRawLines = filter (/= "") rawLines
     (remainingLines, draws) = parseDraws cleanedRawLines
     (_, boards) = parseAllBoards remainingLines []
-    (winningBoard, drawCount) = incrementalSolve boards draws 1
+    worstBoard = findWorstBoard boards draws 1
+    (_, drawCount) = findBestBoard [worstBoard] draws 1
 
 calcOutput :: Board -> [Int] -> Int -> Int
 calcOutput board draws drawCount = unmarkedSum * finalDraw
@@ -22,13 +23,20 @@ calcOutput board draws drawCount = unmarkedSum * finalDraw
     unmarkedSum = sumUnmarked board (headN draws [] drawCount)
     finalDraw = draws !! (drawCount - 2)
 
-incrementalSolve :: [Board] -> [Int] -> Int -> (Board, Int)
-incrementalSolve boards draws n =
+findBestBoard :: [Board] -> [Int] -> Int -> (Board, Int)
+findBestBoard boards draws n =
   case winningBoard of
     Just winningBoard -> (winningBoard, n)
-    Nothing -> incrementalSolve boards draws (n + 1)
+    Nothing -> findBestBoard boards draws (n + 1)
   where
     winningBoard = find (isWinningBoard (headN draws [] n)) boards
+
+findWorstBoard :: [Board] -> [Int] -> Int -> Board
+findWorstBoard boards draws n =
+  if length losingBoards == 1 then head losingBoards
+  else findWorstBoard boards draws (n + 1)
+  where
+    losingBoards = filter (not . isWinningBoard (headN draws [] n)) boards
 
 parseDraws :: [String] -> ([String], [Int])
 parseDraws rawLines = (remainingLines, draws)
