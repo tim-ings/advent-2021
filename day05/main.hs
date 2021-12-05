@@ -26,19 +26,29 @@ populateCells cells points = populateCells updatedCells remainingPoints
     remainingPoints = tail points
 
 generatePoints :: [Line] -> [Point]
-generatePoints lines = flat $ map expandLine $ filter isValidLine lines
+generatePoints lines = flat $ map expandLine lines
 
 expandLine :: Line -> [Point]
-expandLine ((x0, y0), (x1, y1)) = [(x, y) | x <- [startX .. endX], y <- [startY .. endY]]
+expandLine line
+  | isStraightLine line = expandStraightLine line
+  | otherwise = expandDiagonalLine line
+
+expandStraightLine :: Line -> [Point]
+expandStraightLine ((x0, y0), (x1, y1)) = [(x, y) | x <- generateRange x0 x1, y <- generateRange y0 y1]
+
+expandDiagonalLine :: Line -> [Point]
+expandDiagonalLine ((x0, y0), (x1, y1)) = zip xs ys
   where
-    (startX, endX) = sortPoint (x0, x1)
-    (startY, endY) = sortPoint (y0, y1)
+    xs = generateRange x0 x1
+    ys = generateRange y0 y1
 
-sortPoint :: Point -> Point
-sortPoint (x, y) = (min x y, max x y)
+generateRange :: Int -> Int -> [Int]
+generateRange start end
+  | start == end = [start]
+  | otherwise = [start, start + signum (end - start) .. end]
 
-isValidLine :: Line -> Bool
-isValidLine line = isVertical line || isHorizontal line
+isStraightLine :: Line -> Bool
+isStraightLine line = isVertical line || isHorizontal line
 
 isHorizontal :: Line -> Bool
 isHorizontal ((x0, y0), (x1, y1)) = x0 == x1
