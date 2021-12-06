@@ -1,7 +1,9 @@
 import Data.List
-import Debug.Trace (traceShow)
+import Data.Map (Map)
+import qualified Data.Map as Map
+import Data.Maybe
 
-type LanternfishAge = Int
+type SimulationState = Map Int Int
 
 main :: IO ()
 main = interact handle
@@ -10,25 +12,38 @@ handle :: String -> String
 handle = show . solve . lines
 
 solve :: [String] -> String
-solve rawLines = show $ length result
+solve rawLines = show $ countFish result
   where
-    fishAges = parseFishAges rawLines
-    result = simulateDays 256 fishAges
+    state = parseInput rawLines
+    result = simulateDays (256 + 1) state
 
-parseFishAges :: [String] -> [LanternfishAge]
-parseFishAges = map read . splitWith ',' . head
+parseInput :: [String] -> SimulationState
+parseInput rawLine = state
+  where
+    ages = map read $ splitWith ',' $ head rawLine
+    state = foldl' (\state age -> Map.insertWith (+) age 1 state) Map.empty ages
+
+countFish :: SimulationState -> Int
+countFish = Map.foldl' (+) 0
 
 splitWith :: Char -> String -> [String]
 splitWith delimiter string = words [if c == delimiter then ' ' else c | c <- string]
 
-simulateDays :: Int -> [LanternfishAge] -> [LanternfishAge]
-simulateDays 0 todayAges = todayAges
-simulateDays n todayAges = simulateDays (pred n) (tomorrowCycledAges ++ newFish)
+simulateDays :: Int -> SimulationState -> SimulationState
+simulateDays 0 state = state
+simulateDays n state = simulateDays (pred n) (simulate state)
   where
-    tomorrowAges = map pred todayAges
-    newFishCount = length $ filter (< 0) tomorrowAges
-    tomorrowCycledAges = map clampAgeCycle tomorrowAges
-    newFish = replicate newFishCount 8
+    simulate = simulateDayProgressed . simulateReproduction
 
-clampAgeCycle :: LanternfishAge -> LanternfishAge
-clampAgeCycle age = if age < 0 then 6 else age
+simulateDayProgressed :: SimulationState -> SimulationState
+simulateDayProgressed = Map.mapKeysWith (+) pred
+
+simulateReproduction :: SimulationState -> SimulationState
+simulateReproduction state = updateState state
+  where
+    reproducingCount = fromMaybe 0 $ Map.lookup (-1) state
+    introduceChildren = Map.insertWith (+) 8 reproducingCount
+    removeParents = Map.filterWithKey (\age _ -> age >= 0)
+    reintroduceParents = Map.insertWith (+) 6 reproducingCount
+    resetNewParents = removeParents . reintroduceParents
+    updateState = introduceChildren . resetNewParents
