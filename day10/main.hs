@@ -1,3 +1,5 @@
+import Data.List
+
 type Case = [String]
 type Soln = Int
 
@@ -10,31 +12,38 @@ handle :: String -> String
 handle = show . solve . lines
 
 solve :: Case -> Soln
-solve input = sum points
+solve input = points !! (length points `div` 2)
   where
-    statuses = zip input $ map (isNotCorrupt [] 0) input
-    corruptLines = filter (not . fst . snd) statuses
-    corruptChars = map (\(line, (_, position)) -> line !! position) corruptLines
-    points = map getPoints corruptChars
+    statuses = zip input $ map (isNotCorrupt []) input
+    incompleteLines = map fst $ filter snd statuses
+    completionStrings = map (completionString []) incompleteLines
+    points = sort $ map (calcPoints 0) completionStrings
 
 getPoints :: Char -> Int
-getPoints ')' = 3
-getPoints ']' = 57
-getPoints '}' = 1197
-getPoints '>' = 25137
-getPoints _ = 0
+getPoints ')' = 1
+getPoints ']' = 2
+getPoints '}' = 3
+getPoints '>' = 4
+getPoints _ = error "Unknown character"
 
-isNotCorrupt :: Stack Char -> Int -> String -> (Bool, Int)
-isNotCorrupt _ position [] = (True, position)
-isNotCorrupt stack position ('(' : remaining) = isNotCorrupt (pushStack stack '(') (succ position) remaining
-isNotCorrupt stack position ('{' : remaining) = isNotCorrupt (pushStack stack '{') (succ position) remaining
-isNotCorrupt stack position ('[' : remaining) = isNotCorrupt (pushStack stack '[') (succ position) remaining
-isNotCorrupt stack position ('<' : remaining) = isNotCorrupt (pushStack stack '<') (succ position) remaining
-isNotCorrupt stack position (')' : remaining) = if peekStack stack == Just '(' then isNotCorrupt (popStack stack) (succ position) remaining else (False, position)
-isNotCorrupt stack position ('}' : remaining) = if peekStack stack == Just '{' then isNotCorrupt (popStack stack) (succ position) remaining else (False, position)
-isNotCorrupt stack position (']' : remaining) = if peekStack stack == Just '[' then isNotCorrupt (popStack stack) (succ position) remaining else (False, position)
-isNotCorrupt stack position ('>' : remaining) = if peekStack stack == Just '<' then isNotCorrupt (popStack stack) (succ position) remaining else (False, position)
-isNotCorrupt _ position _ = (False, position)
+calcPoints :: Int -> String -> Int
+calcPoints points [] = points
+calcPoints points remaining = calcPoints updatedPoints (tail remaining)
+    where
+      nextCharacter = head remaining
+      updatedPoints = points * 5 + getPoints nextCharacter
+
+isNotCorrupt :: Stack Char -> String -> Bool
+isNotCorrupt _ [] = True
+isNotCorrupt stack ('(' : remaining) = isNotCorrupt (pushStack stack '(') remaining
+isNotCorrupt stack ('{' : remaining) = isNotCorrupt (pushStack stack '{') remaining
+isNotCorrupt stack ('[' : remaining) = isNotCorrupt (pushStack stack '[') remaining
+isNotCorrupt stack ('<' : remaining) = isNotCorrupt (pushStack stack '<') remaining
+isNotCorrupt stack (')' : remaining) = (peekStack stack == Just '(') && isNotCorrupt (popStack stack) remaining
+isNotCorrupt stack ('}' : remaining) = (peekStack stack == Just '{') && isNotCorrupt (popStack stack) remaining
+isNotCorrupt stack (']' : remaining) = (peekStack stack == Just '[') && isNotCorrupt (popStack stack) remaining
+isNotCorrupt stack ('>' : remaining) = (peekStack stack == Just '<') && isNotCorrupt (popStack stack) remaining
+isNotCorrupt _ _ = False
 
 pushStack :: [a] -> a -> [a]
 pushStack stack element = element : stack
@@ -44,3 +53,15 @@ peekStack stack = if null stack then Nothing else Just (head stack)
 
 popStack :: [a] -> [a]
 popStack = tail
+
+completionString :: Stack Char -> String -> Stack Char
+completionString stack [] = stack
+completionString stack ('(' : remaining) = completionString (pushStack stack ')') remaining
+completionString stack ('{' : remaining) = completionString (pushStack stack '}') remaining
+completionString stack ('[' : remaining) = completionString (pushStack stack ']') remaining
+completionString stack ('<' : remaining) = completionString (pushStack stack '>') remaining
+completionString stack (')' : remaining) = completionString (popStack stack) remaining
+completionString stack ('}' : remaining) = completionString (popStack stack) remaining
+completionString stack (']' : remaining) = completionString (popStack stack) remaining
+completionString stack ('>' : remaining) = completionString (popStack stack) remaining
+completionString _ _ = error "Encountered unknown character"
