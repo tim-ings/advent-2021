@@ -2,7 +2,10 @@ import Data.DiGraph (DiGraph)
 import qualified Data.DiGraph as DiGraph
 import qualified Data.HashSet as HashSet
 import Data.List
+import Data.Maybe (isJust, fromMaybe)
 import Debug.Trace (traceShow)
+import Data.Set (Set)
+import qualified Data.Set as Set
 
 type Case = [[Int]]
 type Soln = Int
@@ -23,12 +26,23 @@ readCase = map (map readHeight) . lines
 readHeight :: Char -> Int
 readHeight ch = read [ch]
 
-solve :: Case -> Soln 
-solve heightMap = sum $ map riskLevel lowPoints
+solve :: Case -> Soln
+solve heightMap = product topBasinSizes
   where
-    graph = buildGraph heightMap
-    nodes = HashSet.toList $ DiGraph.vertices graph
-    lowPoints = filter (isLowPoint graph) nodes
+    graph = pruneBasinBoundaries $ buildGraph heightMap
+    shortestPathCache = DiGraph.shortestPathCache graph
+    basins = findBasins heightMap graph shortestPathCache
+    uniqueBasins = Set.toList $ Set.fromList basins
+    basinSizes = map length uniqueBasins
+    topBasinSizes = take 3 $ reverse $ sort basinSizes
+
+findBasins :: Case -> HeightGraph -> DiGraph.ShortestPathCache HeightNode -> [[HeightNode]]
+findBasins heightMap graph shortestPathCache = basins
+  where
+    gridWidth = length heightMap
+    gridHeight = length $ head heightMap
+    lowPoints = filter (isLowPoint graph) $ HashSet.toList $ DiGraph.vertices graph
+    basins = sort $ map (basinAt graph shortestPathCache) lowPoints
 
 isLowPoint :: HeightGraph -> HeightNode -> Bool
 isLowPoint graph node = all (\(_, adjValue) -> adjValue > nodeValue) adjacencies
@@ -36,8 +50,24 @@ isLowPoint graph node = all (\(_, adjValue) -> adjValue > nodeValue) adjacencies
     (_, nodeValue) = node
     adjacencies = HashSet.toList $ DiGraph.adjacents node graph
 
-riskLevel :: HeightNode -> Int
-riskLevel (_, value) = value + 1
+toNode :: Case -> Point -> HeightNode
+toNode heightMap point = (point, heightAt heightMap point)
+
+basinAt :: HeightGraph -> DiGraph.ShortestPathCache HeightNode -> HeightNode -> [HeightNode]
+basinAt graph shortestPathCache startNode = map fst justDistances
+  where
+    vertices = HashSet.toList $ DiGraph.vertices graph
+    distances = map (\node -> (node, DiGraph.distance_ startNode node shortestPathCache)) vertices
+    justDistances = filter (\(_, distance) -> isJust distance) distances
+
+pruneBasinBoundaries :: HeightGraph -> HeightGraph
+pruneBasinBoundaries graph = DiGraph.fromEdges $ HashSet.filter (not . connectsBasinBoundary) $ DiGraph.edges graph
+
+connectsBasinBoundary :: DiGraph.DiEdge HeightNode -> Bool
+connectsBasinBoundary (a, b) = isBoundaryVertex a || isBoundaryVertex b
+
+isBoundaryVertex :: HeightNode -> Bool
+isBoundaryVertex (_, value) = value == 9
 
 buildGraph :: Case -> HeightGraph
 buildGraph heights = DiGraph.fromList adjacencies
