@@ -20,7 +20,7 @@ handle :: String -> String
 handle = show . solve . readCase
 
 solve :: Case -> Soln
-solve grid = snd $ applySteps 100 (grid, 0)
+solve grid = snd $ applySteps grid 0
 
 -- read
 
@@ -31,29 +31,32 @@ readCase raw = Map.fromList $ map (\(i, j) -> ((i, j), values !! i !! j)) points
 
 -- step
 
-applySteps :: Int -> (Grid, Int) -> (Grid, Int)
-applySteps 0 (grid, flashedCount) = (grid, flashedCount)
-applySteps n (grid, flashedCount) = applySteps (pred n) $ step (grid, flashedCount)
-
-step :: (Grid, Int) -> (Grid, Int)
-step (grid, flashedCount) = (updatedGrid, flashedCount + pointsFlashed)
+applySteps :: Grid -> Int -> (Grid, Int)
+applySteps grid stepCount =
+  if isSynchronised steppedGrid then (grid, stepCount)
+  else applySteps steppedGrid (succ stepCount)
   where
-    (updatedGrid, pointsFlashed) = flashGrid 0 $ incrementGrid grid
+    steppedGrid = step grid
+
+step :: Grid -> Grid
+step = incrementGrid . flashGrid
 
 incrementGrid :: Grid -> Grid
 incrementGrid = Map.map succ
 
+isSynchronised :: Grid -> Bool
+isSynchronised = (== width * height) . Map.size . Map.filter (== 1)
+
 -- flash
 
-flashGrid :: Int -> Grid -> (Grid, Int)
-flashGrid flashedCount grid =
-  if morePointsToFlash then flashGrid updatedFlashedCount flashedGrid
-  else (resetPoints (findLowEnergyEnergyPoints flashedGrid) flashedGrid, updatedFlashedCount)
+flashGrid :: Grid -> Grid
+flashGrid grid =
+  if morePointsToFlash then flashGrid flashedGrid
+  else resetPoints (findLowEnergyEnergyPoints flashedGrid) flashedGrid
   where
     pointsToFlash = findHighEnergyPoints grid
     flashedGrid = taintPoints pointsToFlash $ applyFlashes pointsToFlash grid
     morePointsToFlash = not $ null $ findHighEnergyPoints flashedGrid
-    updatedFlashedCount = flashedCount + length pointsToFlash
 
 findHighEnergyPoints :: Grid -> [Point]
 findHighEnergyPoints = map fst . Map.toList . Map.filter (> 9)
