@@ -1,9 +1,7 @@
 {-# LANGUAGE DeriveGeneric #-}
-import Data.List
 import Data.List.Split
 import Data.Char
 import Data.Hashable
-import qualified Algebra.Graph.Undirected as Undirected
 import qualified Data.Set as Set
 import GHC.Generics
 
@@ -20,8 +18,9 @@ instance Hashable Cave where
   hash (SmallCave id) = hash id
   hash (LargeCave id) = hash id
 
-type CaveSystem = Undirected.Graph Cave
-
+type Edge a = (a, a)
+type Graph a = [Edge a]
+type CaveSystem = Graph Cave
 type Case = CaveSystem
 type Soln = Int
 
@@ -35,9 +34,7 @@ solve :: Case -> Soln
 solve = length . findPaths [] StartCave
 
 readCase :: String -> Case
-readCase raw = Undirected.edges edges
-  where
-    edges = map readLine $ lines raw
+readCase raw = map readLine $ lines raw
 
 readLine :: String -> (Cave, Cave)
 readLine line = (sourceCave, destCave)
@@ -62,7 +59,7 @@ findPaths path origin caveSystem
     findNextPath nextOrigin = findPaths updatedPath nextOrigin caveSystem
 
 getFrontier :: Cave -> CaveSystem -> [Cave]
-getFrontier origin = map (relatedCave origin) . filter (edgeContains origin) . Undirected.edgeList
+getFrontier origin = map (relatedCave origin) . filter (edgeContains origin)
   where
     edgeContains origin (a, b) = origin == a || origin == b
     relatedCave origin (a, b) = if origin == a then b else a
