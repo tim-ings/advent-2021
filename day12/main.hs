@@ -65,9 +65,9 @@ getFrontier origin = map (relatedCave origin) . filter (edgeContains origin)
     relatedCave origin (a, b) = if origin == a then b else a
 
 unvisitedFrontier :: [Cave] -> [Cave] -> [Cave]
-unvisitedFrontier visited frontier = Set.toList $ Set.difference frontierSet visitedMask
+unvisitedFrontier visited frontier = Set.toList $ Set.difference frontierSet multipleVisitsPermittedMask
   where
-    visitedMask =
+    multipleVisitsPermittedMask =
       if hasVisitedSmallCaveTwice visited then Set.filter (not . isLargeCave) $ Set.fromList visited
       else Set.filter (not . isLargeOrSmallCave) $ Set.fromList visited
     frontierSet = Set.fromList frontier
