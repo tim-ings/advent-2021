@@ -1,22 +1,13 @@
-{-# LANGUAGE DeriveGeneric #-}
 import Data.List.Split
 import Data.Char
-import Data.Hashable
 import qualified Data.Set as Set
-import GHC.Generics
 
 data Cave
   = StartCave
   | EndCave
   | SmallCave String
   | LargeCave String
-  deriving (Show, Eq, Generic, Ord)
-
-instance Hashable Cave where
-  hash StartCave = hash "start"
-  hash EndCave = hash "end"
-  hash (SmallCave id) = hash id
-  hash (LargeCave id) = hash id
+  deriving (Show, Eq, Ord)
 
 type Edge a = (a, a)
 type Graph a = [Edge a]
