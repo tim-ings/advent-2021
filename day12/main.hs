@@ -58,7 +58,7 @@ findPaths path origin caveSystem
     isDeadEnd = null
     hasPathReachedEnd = Set.member EndCave . Set.fromList
     updatedPath = path ++ [origin]
-    frontier = unvisitedFrontier path $ getFrontier origin caveSystem
+    frontier = unvisitedFrontier updatedPath $ getFrontier origin caveSystem
     findNextPath nextOrigin = findPaths updatedPath nextOrigin caveSystem
 
 getFrontier :: Cave -> CaveSystem -> [Cave]
@@ -68,11 +68,26 @@ getFrontier origin = map (relatedCave origin) . filter (edgeContains origin) . U
     relatedCave origin (a, b) = if origin == a then b else a
 
 unvisitedFrontier :: [Cave] -> [Cave] -> [Cave]
-unvisitedFrontier visited frontier = Set.toList $ Set.difference frontierSet visitedSet
+unvisitedFrontier visited frontier = Set.toList $ Set.difference frontierSet visitedMask
   where
-    visitedSet = Set.filter (not . multipleVisitsPermitted) $ Set.fromList visited
+    visitedMask =
+      if hasVisitedSmallCaveTwice visited then Set.filter (not . isLargeCave) $ Set.fromList visited
+      else Set.filter (not . isLargeOrSmallCave) $ Set.fromList visited
     frontierSet = Set.fromList frontier
 
-multipleVisitsPermitted :: Cave -> Bool
-multipleVisitsPermitted (LargeCave _) = True
-multipleVisitsPermitted _ = False
+hasVisitedSmallCaveTwice :: [Cave] -> Bool
+hasVisitedSmallCaveTwice visited = smallCavesCount > uniqueSmallCavesCount
+  where
+    smallCavesCount = length $ filter isSmallCave visited
+    uniqueSmallCavesCount = Set.size $ Set.filter isSmallCave $ Set.fromList visited
+
+isLargeCave :: Cave -> Bool
+isLargeCave (LargeCave _) = True
+isLargeCave _ = False
+
+isSmallCave :: Cave -> Bool
+isSmallCave (SmallCave _) = True
+isSmallCave _ = False
+
+isLargeOrSmallCave :: Cave -> Bool
+isLargeOrSmallCave cave = isSmallCave cave || isLargeCave cave
