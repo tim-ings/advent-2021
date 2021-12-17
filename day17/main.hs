@@ -14,13 +14,12 @@ handle :: String -> String
 handle = show . solve . readCase
 
 solve :: Case -> Soln
-solve area = maximum validYs
+solve area = length validTrajectories
   where
     ((minX, maxX), (minY, maxY)) = area
     velocities = [(vx, vy) | vx <- [1 .. maxX], vy <- [minY .. negate minY]]
     trajectories = map (generateTrajectory area) velocities
     validTrajectories = filter (isValidTrajectory area) trajectories
-    validYs = map snd $ concat validTrajectories
 
 readCase :: String -> Area
 readCase ('t':'a':'r':'g':'e':'t':' ':'a':'r':'e':'a':':':' ':remainder) = (readRange rawRangeX, readRange rawRangeY)
