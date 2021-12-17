@@ -6,6 +6,7 @@ import qualified Data.HashSet as HashSet
 import Data.Char (digitToInt)
 import Data.Graph.AStar (aStar)
 import Data.Maybe (fromMaybe)
+import Debug.Trace (traceShow)
 
 type Point = (Int, Int)
 type Risk = Int
@@ -30,7 +31,7 @@ solve (graph, start, goal) = cost path
 readCase :: String -> Case
 readCase rawInput = (graph, start, goal)
   where
-    grid = map (map digitToInt) (lines rawInput)
+    grid = expandGrid $ map (map digitToInt) (lines rawInput)
     width = length (head grid)
     height = length grid
     points = (,) <$> [0 .. width - 1] <*> [0 .. height - 1]
@@ -40,8 +41,33 @@ readCase rawInput = (graph, start, goal)
     start = buildRiskNode (0, 0)
     goal = buildRiskNode (width - 1, height - 1)
 
+succWrap :: Risk -> Risk
+succWrap n
+  | n >= 9 = 1
+  | otherwise = succ n
+
+expandGrid :: [[Risk]] -> [[Risk]]
+expandGrid grid = tallGrid
+  where
+    wideGrid = map (expandRight 5 []) grid
+    tallGrid = expandDown 5 [] wideGrid
+
+expandRight :: Int -> [Risk] -> [Risk] -> [Risk]
+expandRight 0 expanded _ = expanded
+expandRight n [] row = expandRight (pred n) row row
+expandRight n expanded row = expandRight (pred n) (expanded ++ map succWrap lastExpansion) row
+  where
+    lastExpansion = reverse $ take (length row) $ reverse expanded
+
+expandDown :: Int -> [[Risk]] -> [[Risk]] -> [[Risk]]
+expandDown 0 expanded _ = expanded
+expandDown n [] grid = expandDown (pred n) grid grid
+expandDown n expanded grid = expandDown (pred n) (expanded ++ map (map succWrap) lastExpansion) grid
+  where
+    lastExpansion = reverse $ take (length grid) $ reverse expanded
+
 riskAt :: [[Risk]] -> Point -> Risk
-riskAt grid (x, y) = grid !! x !! y
+riskAt grid (x, y) = (grid !! x) !! y
 
 neighbouringPoints :: [[Risk]] -> Point -> HashSet Point
 neighbouringPoints grid (x, y) = HashSet.fromList $ filter (isValidNeighbour grid) [(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1)]
