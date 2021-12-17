@@ -22,13 +22,13 @@ solve area = length validTrajectories
     validTrajectories = filter (isValidTrajectory area) trajectories
 
 readCase :: String -> Area
-readCase ('t':'a':'r':'g':'e':'t':' ':'a':'r':'e':'a':':':' ':remainder) = (readRange rawRangeX, readRange rawRangeY)
-  where
-    [rawRangeX, rawRangeY] = splitOn ", " remainder
+readCase ('t':'a':'r':'g':'e':'t':' ':'a':'r':'e':'a':':':' ':remainder) = (readRange rawRangeX, readRange rawRangeY) where [rawRangeX, rawRangeY] = splitOn ", " remainder
+readCase _ = error "Failed to read case"
 
 readRange :: String -> Vec2
 readRange ('x':'=':remainder) = (read from, read to) where [from, to] = splitOn ".." remainder
 readRange ('y':'=':remainder) = (read from, read to) where [from, to] = splitOn ".." remainder
+readRange _ = error "Failed to read range"
 
 generateTrajectory :: Area -> Vec2 -> Trajectory
 generateTrajectory ((minX, maxX), (minY, maxY)) = takeWhile (\(_, y) -> y >= minY) . stepPositions (0, 0)
