@@ -2,11 +2,16 @@ import Data.List.Split (splitOn)
 import Text.Parsec ((<|>))
 import qualified Text.Parsec as Parsec
 import qualified Text.Parsec as ParsecString
+import Debug.Trace (traceShow)
 
 data SnailNumber
   = SnailPair SnailNumber SnailNumber
   | SnailLiteral Int
-  deriving (Show, Eq, Ord)
+  deriving (Eq, Ord)
+
+instance Show SnailNumber where
+  show (SnailLiteral n) = show n
+  show (SnailPair lhs rhs) = "[" ++ show lhs ++ "," ++ show rhs ++ "]"
 
 type Case = [SnailNumber]
 type Soln = String
@@ -48,23 +53,30 @@ snailSum (total, numbers) = snailSum (snailAdd total (head numbers), tail number
 snailAdd :: SnailNumber -> SnailNumber -> SnailNumber
 snailAdd lhs rhs = snailReduce $ SnailPair lhs rhs
 
--- this is the problem function
--- we need to keep exploding/splitting properly
--- we may also then need to stop an action and start again from root if we do anything once
 snailReduce :: SnailNumber -> SnailNumber
-snailReduce num = splitNum
+snailReduce num = if null reducedNumbers then num else last reducedNumbers
   where
-    (explodedNum, _, _) = snailExplode 0 num
-    splitNum = snailSplit 0 explodedNum
+    reducedNumbers = iterateToStable (snailSplit False . iterateSnailExplode) num
 
-snailExplode :: Int -> SnailNumber -> (SnailNumber, Maybe Int, Maybe Int)
-snailExplode _ (SnailLiteral n) = (SnailLiteral n, Nothing, Nothing)
-snailExplode depth (SnailPair lhs rhs)
-  | depth > 4 = (SnailLiteral 0, extractLiteral lhs', extractLiteral rhs')
+iterateSnailExplode :: SnailNumber -> SnailNumber
+iterateSnailExplode num = if null explodedNumbers then num else last explodedNumbers
+  where
+    runSnailExplode num = result where (result, _, _) = snailExplode False 0 num
+    explodedNumbers = iterateToStable runSnailExplode num
+
+iterateToStable :: Eq a => (a -> a) -> a -> [a]
+iterateToStable fn initial = map snd $ takeWhile (uncurry (/=)) $ iterate (\(_, next) -> (next, fn next)) (initial, fn initial)
+
+snailExplode :: Bool -> Int -> SnailNumber -> (SnailNumber, Maybe Int, Maybe Int)
+snailExplode True _ num = (num, Nothing, Nothing)
+snailExplode done _ (SnailLiteral n) = (SnailLiteral n, Nothing, Nothing)
+snailExplode done depth (SnailPair lhs rhs)
+  | depth >= 4 = (SnailLiteral 0, extractLiteral lhs', extractLiteral rhs')
   | otherwise = (SnailPair lhs'' rhs'', lhsLeftCarry, rhsRightCarry)
   where
-    (lhs', lhsLeftCarry, lhsRightCarry) = snailExplode (succ depth) lhs
-    (rhs', rhsLeftCarry, rhsRightCarry) = snailExplode (succ depth) rhs
+    (lhs', lhsLeftCarry, lhsRightCarry) = snailExplode done (succ depth) lhs
+    (rhs', rhsLeftCarry, rhsRightCarry) = snailExplode leftExploded (succ depth) rhs
+    leftExploded = lhs /= lhs'
     lhs'' = applyLeftCarry lhs' rhsLeftCarry
     rhs'' = applyRightCarry rhs' lhsRightCarry
 
@@ -84,10 +96,15 @@ applyLeftCarry (SnailLiteral n) (Just carry) = SnailLiteral (n + carry)
 applyLeftCarry (SnailPair lhs rhs) Nothing = SnailPair lhs rhs
 applyLeftCarry (SnailPair lhs rhs) (Just carry) = SnailPair lhs (applyLeftCarry rhs (Just carry))
 
-snailSplit :: Int -> SnailNumber -> SnailNumber
-snailSplit depth (SnailPair lhs rhs) = SnailPair (snailSplit (succ depth) lhs) (snailSplit (succ depth) rhs)
-snailSplit depth (SnailLiteral n)
-  | depth > 4 = SnailPair (SnailLiteral lhs) (SnailLiteral rhs)
+snailSplit :: Bool -> SnailNumber -> SnailNumber
+snailSplit done (SnailPair lhs rhs) = SnailPair lhs' rhs'
+  where
+    lhs' = snailSplit False lhs
+    rhs' = snailSplit leftSplit rhs
+    leftSplit = lhs /= lhs'
+snailSplit done (SnailLiteral n)
+  | done = SnailLiteral n
+  | n >= 10 = SnailPair (SnailLiteral lhs) (SnailLiteral rhs)
   | otherwise = SnailLiteral n
   where
     lhs = floor (fromIntegral n / 2.0)
