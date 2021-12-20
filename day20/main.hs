@@ -19,8 +19,16 @@ handle = show . solve . readCase
 solve :: Case -> Soln
 solve (algorithm, image) = length litPixels
   where
-    enhancedImage = iterate (enhanceImage algorithm) image !! 2
+    enhancedImage = applyEnhance 2 algorithm image
     litPixels = Map.filter (== 1) enhancedImage
+
+applyEnhance :: Int -> Algorithm -> Image -> Image
+applyEnhance 0 _ image = image
+applyEnhance n algorithm image = applyEnhance (pred n) algorithm (enhanceImage (defaultPixel n) algorithm image)
+  where
+    shouldFlipPixel = head algorithm == 1 && last algorithm == 0
+    flipPixel n = if even n then 0 else 1
+    defaultPixel n = if shouldFlipPixel then flipPixel n else 0
 
 showImage :: Image -> String
 showImage image = unlines rows
@@ -64,18 +72,18 @@ imageBounds image = (minimum xs, minimum ys, maximum xs, maximum ys)
     xs = map fst $ Map.keys image
     ys = map snd $ Map.keys image
 
-enhanceImage :: Algorithm -> Image -> Image
-enhanceImage algorithm image = enhancedImage
+enhanceImage :: Pixel -> Algorithm -> Image -> Image
+enhanceImage defaultPixel algorithm image = enhancedImage
   where
     (minX, minY, maxX, maxY) = imageBounds image
     consideredPoints = generatePoints (minX - 1, minY - 1, maxY + 2, maxY + 2)
-    enhancedImage = Map.fromList $ map (enhancePixel algorithm image) consideredPoints
+    enhancedImage = Map.fromList $ map (enhancePixel defaultPixel algorithm image) consideredPoints
 
-enhancePixel :: Algorithm -> Image -> Coord -> (Coord, Pixel)
-enhancePixel algorithm image coord = (coord, algorithm !! algorithmIndex)
+enhancePixel :: Pixel -> Algorithm -> Image -> Coord -> (Coord, Pixel)
+enhancePixel defaultPixel algorithm image coord = (coord, algorithm !! algorithmIndex)
   where
     considered = consideredPixels coord
-    consideredValues = map (\neighbour -> Map.findWithDefault 0 neighbour image) considered
+    consideredValues = map (\neighbour -> Map.findWithDefault defaultPixel neighbour image) considered
     algorithmIndex = binToInt consideredValues
     consideredPixels (x, y) =
       [ (x - 1, y - 1) -- top left
