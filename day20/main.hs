@@ -19,7 +19,7 @@ handle = show . solve . readCase
 solve :: Case -> Soln
 solve (algorithm, image) = length litPixels
   where
-    enhancedImage = applyEnhance 2 algorithm image
+    enhancedImage = applyEnhance 50 algorithm image
     litPixels = Map.filter (== 1) enhancedImage
 
 applyEnhance :: Int -> Algorithm -> Image -> Image
