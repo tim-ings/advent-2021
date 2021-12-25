@@ -56,29 +56,29 @@ snailAdd lhs rhs = snailReduce $ SnailPair lhs rhs
 snailReduce :: SnailNumber -> SnailNumber
 snailReduce num = if null reducedNumbers then num else last reducedNumbers
   where
-    reducedNumbers = iterateToStable (snailSplit False . iterateSnailExplode) num
+    reducedNumbers = iterateToStable (fst . snailSplit False . iterateSnailExplode) num
 
 iterateSnailExplode :: SnailNumber -> SnailNumber
 iterateSnailExplode num = if null explodedNumbers then num else last explodedNumbers
   where
-    runSnailExplode num = result where (result, _, _) = snailExplode False 0 num
+    runSnailExplode num = result where (result, _, _, _) = snailExplode False 0 num
     explodedNumbers = iterateToStable runSnailExplode num
 
 iterateToStable :: Eq a => (a -> a) -> a -> [a]
 iterateToStable fn initial = map snd $ takeWhile (uncurry (/=)) $ iterate (\(_, next) -> (next, fn next)) (initial, fn initial)
 
-snailExplode :: Bool -> Int -> SnailNumber -> (SnailNumber, Maybe Int, Maybe Int)
-snailExplode True _ num = (num, Nothing, Nothing)
-snailExplode done _ (SnailLiteral n) = (SnailLiteral n, Nothing, Nothing)
+snailExplode :: Bool -> Int -> SnailNumber -> (SnailNumber, Maybe Int, Maybe Int, Bool)
+snailExplode True _ number = (number, Nothing, Nothing, True)
+snailExplode done _ (SnailLiteral n) = (SnailLiteral n, Nothing, Nothing, False)
 snailExplode done depth (SnailPair lhs rhs)
-  | depth >= 4 = (SnailLiteral 0, extractLiteral lhs', extractLiteral rhs')
-  | otherwise = (SnailPair lhs'' rhs'', lhsLeftCarry, rhsRightCarry)
+  | depth >= 4 = (SnailLiteral 0, extractLiteral lhs', extractLiteral rhs', True)
+  | otherwise = (SnailPair lhs'' rhs'', lhsLeftCarry, rhsRightCarry, done')
   where
-    (lhs', lhsLeftCarry, lhsRightCarry) = snailExplode done (succ depth) lhs
-    (rhs', rhsLeftCarry, rhsRightCarry) = snailExplode leftExploded (succ depth) rhs
-    leftExploded = lhs /= lhs'
+    (lhs', lhsLeftCarry, lhsRightCarry, lhsDone) = snailExplode done (succ depth) lhs
+    (rhs', rhsLeftCarry, rhsRightCarry, rhsDone) = snailExplode lhsDone (succ depth) rhs
     lhs'' = applyLeftCarry lhs' rhsLeftCarry
     rhs'' = applyRightCarry rhs' lhsRightCarry
+    done' = done || lhsDone || rhsDone
 
 extractLiteral :: SnailNumber -> Maybe Int
 extractLiteral (SnailLiteral n) = Just n
@@ -96,16 +96,16 @@ applyLeftCarry (SnailLiteral n) (Just carry) = SnailLiteral (n + carry)
 applyLeftCarry (SnailPair lhs rhs) Nothing = SnailPair lhs rhs
 applyLeftCarry (SnailPair lhs rhs) (Just carry) = SnailPair lhs (applyLeftCarry rhs (Just carry))
 
-snailSplit :: Bool -> SnailNumber -> SnailNumber
-snailSplit done (SnailPair lhs rhs) = SnailPair lhs' rhs'
+snailSplit :: Bool -> SnailNumber -> (SnailNumber, Bool)
+snailSplit True number = (number, True)
+snailSplit done (SnailPair lhs rhs) = (SnailPair lhs' rhs', done')
   where
-    lhs' = snailSplit False lhs
-    rhs' = snailSplit leftSplit rhs
-    leftSplit = lhs /= lhs'
+    (lhs', lhsDone) = snailSplit done lhs
+    (rhs', rhsDone) = snailSplit lhsDone rhs
+    done' = done || lhsDone || rhsDone
 snailSplit done (SnailLiteral n)
-  | done = SnailLiteral n
-  | n >= 10 = SnailPair (SnailLiteral lhs) (SnailLiteral rhs)
-  | otherwise = SnailLiteral n
+  | n >= 10 = (SnailPair (SnailLiteral lhs) (SnailLiteral rhs), True)
+  | otherwise = (SnailLiteral n, done)
   where
     lhs = floor (fromIntegral n / 2.0)
     rhs = ceiling (fromIntegral n / 2.0)
