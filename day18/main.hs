@@ -23,7 +23,15 @@ handle :: String -> String
 handle = show . solve . readCase
 
 solve :: Case -> Soln
-solve numbers = show $ snailMagnitude $ snailSum (head numbers, tail numbers)
+solve numbers = show $ maximum magnitudes
+  where
+    forwardPairs = zip numbers $ tail numbers
+    backwardPairs = map swap forwardPairs
+    pairs = forwardPairs ++ backwardPairs
+    magnitudes = map (snailMagnitude . uncurry snailAdd) pairs
+
+swap :: (a, b) -> (b, a)
+swap (a, b) = (b, a)
 
 readCase :: String -> Case
 readCase = map readLine . lines
