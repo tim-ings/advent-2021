@@ -25,7 +25,6 @@ data Instruction
   deriving (Show, Eq)
 
 type Memory = Map Char Int
-type AluState = ([Int], [Instruction], Memory)
 
 type Case = [Instruction]
 type Soln = Int
@@ -36,13 +35,14 @@ main = interact handle
 handle :: String -> String
 handle = show . solve . readCase
 
+-- could we memoise n instructions where n is the number of unchanged digits in the test prefix
 solve :: Case -> Soln
-solve instructions = runMonad instructions [1,3,5,7,9,2,4,6,8,9,9,9,9,9]
-
-runMonad :: [Instruction] -> [Int] -> Int
-runMonad instructions stdin = fromMaybe (error "Instructions did not leave valid indicator") (Map.lookup 'z' memory)
+solve instructions = last results
   where
-    (_, _, memory) = executeInstructions (stdin, instructions, Map.empty)
+    runTest = runMonad instructions . map digitToInt . show
+    traceRunTest n = traceShow (show n ++ " -> " ++ show (runTest n)) $ runTest n
+    tests = [traceRunTest n | n <- [99999999999999, 99999999999998 .. 11111111111111]]
+    results = takeWhile (/= 0) tests
 
 readCase :: String -> Case
 readCase raw = case Parsec.parse parseInstruction "" raw of
@@ -101,7 +101,12 @@ parseBinaryOperands = do
   rhs <- parseOperand
   return (lhs, rhs)
 
-executeInstructions :: AluState -> AluState
+runMonad :: [Instruction] -> [Int] -> Int
+runMonad instructions stdin = fromMaybe (error "Instructions did not leave valid indicator") (Map.lookup 'z' memory)
+  where
+    (_, _, memory) = executeInstructions (stdin, instructions, Map.empty)
+
+executeInstructions :: ([Int], [Instruction], Memory) -> ([Int], [Instruction], Memory)
 executeInstructions (stdin, [], memory) = (stdin, [], memory)
 executeInstructions (stdin, instructions, memory) = executeInstructions (stdin', instructions', memory')
   where
@@ -110,7 +115,7 @@ executeInstructions (stdin, instructions, memory) = executeInstructions (stdin',
 
 executeInstruction :: ([Int], Memory) -> Instruction -> ([Int], Memory)
 executeInstruction (stdin, memory) (Inp (Variable v)) = (tail stdin, Map.insert v (head stdin) memory)
-executeInstruction (stdin, memory) (Inp _) = error "Unsupported operand"
+executeInstruction (stdin, memory) (Inp _) = error "Unsupported operand type"
 executeInstruction (stdin, memory) (Add lhs rhs) = (stdin, executeBinaryOperation memory (+) lhs rhs)
 executeInstruction (stdin, memory) (Mul lhs rhs) = (stdin, executeBinaryOperation memory (*) lhs rhs)
 executeInstruction (stdin, memory) (Div lhs rhs) = (stdin, executeBinaryOperation memory div lhs rhs)
@@ -125,7 +130,7 @@ executeBinaryOperation memory fn lhs rhs = Map.insert lhsBinding (fn lhsValue rh
     lhsBinding = retrieveBinding lhs
     lhsValue = retrieveValue memory lhs
     rhsValue = retrieveValue memory rhs
-    retrieveValue memory (Literal value) = value
-    retrieveValue memory (Variable binding) = fromMaybe (error "Memory not set") $ Map.lookup binding memory
+    retrieveValue _ (Literal value) = value
+    retrieveValue memory (Variable binding) = Map.findWithDefault 0 binding memory
     retrieveBinding (Variable binding) = binding
     retrieveBinding _ = error "Unsupported operand type"
